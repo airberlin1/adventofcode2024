@@ -1,3 +1,7 @@
+# Input Files
+*.in
+
+
 # Prerequisites
 *.d
 
