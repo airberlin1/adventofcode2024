@@ -4,9 +4,11 @@ import System.IO
 import Control.Monad
 import Data.List
 
+
+-- it misses a few loops that are caused by the new obstacle, python program is correct :(
 main = do
          contents <- readFile "map.in"
-         print $ countVisits $ replaceMapX $ splitInput contents
+         print $ countNewObstacles (nub $ fst $ replaceMapX ((-5, -5), (0, -1)) (getFirstPos $ splitInput contents) $ splitInput contents) $ splitInput contents --first star
 
 
 -- SOF ftw
@@ -61,17 +63,42 @@ isUnallowedPos (pos, _) | fst pos < 0 = True
                         | snd pos > 129 = True
                         | otherwise = False
 
-
-replaceMapX :: [String] -> [Pos]
-replaceMapX xs = helper False (getFirstPos xs) xs []
-               where helper True _ _ v = v
-                     helper _ dir xs v = helper (isUnallowedPos $ getRealNextPos xs dir) (getRealNextPos xs dir) xs (fst dir: v)
+checkDirs :: Direction -> [Direction]
+checkDirs dir = [dir, turnRight dir]
 
 
-countVisits :: [Pos] -> Int
+replaceMapX :: Direction -> Direction -> [String] -> ([Direction], Bool)
+replaceMapX check_dir dir xs = helper False dir xs [] 0
+               where helper True _ _ v _ = (v, False)
+                     helper _ _ _ v 50000 = (v, True)
+                     helper _ dir xs v cnt = if getRealNextPos xs dir `elem` (checkDirs check_dir) then (v, True) else helper (isUnallowedPos $ getRealNextPos xs dir) (getRealNextPos xs dir) xs (dir: v) (cnt + 1)
+
+
+countVisits :: [Direction] -> Int
 countVisits v = sum $ [1 | i <- nub v]
 
 
 countX :: [String] -> Int
 countX xs = sum $ map sumX xs
         where sumX cs = sum [1 | c <- cs, c == 'X']
+
+
+visitsHaveLoop :: [Pos] -> Bool
+visitsHaveLoop v = or [(drop i v) == (take i $ drop (2 * i) v) | i <- [1..480]]
+
+
+reduceToPos :: [Direction] -> [Pos]
+reduceToPos xs = [pos | (pos, dir) <- xs]
+
+
+checkLoop :: Direction -> [String] -> Bool
+checkLoop dir xs = snd $ replaceMapX dir (turnRight dir) xs -- chech here for harder to find loops
+
+
+countNewObstacles :: [Direction] -> [String] -> Int
+countNewObstacles dir xs = sum [1 | i <- nub $ reduceToPos (helper xs dir []), i /= fst (getFirstPos xs) ]
+                      where helper xs dirs d2 | null dirs = d2
+                                              | isUnallowedPos (getNextPos (head dirs)) = helper xs (tail dirs) d2
+                                              | charAtPos (getNextPos (head dirs)) xs == '#' = helper xs (tail dirs) d2
+                                              | checkLoop (head dirs) xs = helper xs (tail dirs) (getNextPos (head dirs) : d2)
+                                              | otherwise = helper xs (tail dirs) d2
