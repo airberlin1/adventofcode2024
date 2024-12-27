@@ -1,3 +1,10 @@
+# Whatever this is
+.ccls-cache/
+
+# Haskell
+*.o
+*.hi
+
 # Input Files
 *.in
 
